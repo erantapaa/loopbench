@@ -5,7 +5,7 @@ This is a collection of files used to benchmark looping in Haskell.
 - h5.hs - the Haskell prgram
 - c5.c - the C program
 - run.hs - helper to run the C and Haskell programs with a range of parameters
-- analyze - python program to report the results
+- analyze - python program to report the results (requires pandas)
 
 # Usage
 
