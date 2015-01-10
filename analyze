@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+#
+# vi: ft=python
+#
+# Provide a tabular Report of the timing results.
+#
+# See the end of this file for usage.
+
+import sys
+import re
+from glob import glob
+import pandas as pd
+
+def parse_path(path):
+  m = re.match('\A.*/([hc])(\d+)-[^/]*\Z', path)
+  if m:
+    return m.group(1), int(m.group(2))
+  else:
+    return ('',0)
+
+"""
+real    0m0.011s
+user    0m0.006s
+sys     0m0.002s
+"""
+
+def parse_c(path, e):
+  d = { "e": e }
+  with open(path) as f:
+    for x in f.readlines():
+      m = re.match('(real|user|sys)\s+(\d+)m([\d\.]+)s', x)
+      if m:
+        d[ m.group(1) ] =  int( m.group(2) )*60 + float( m.group(3) )
+  return d
+
+def num(field, desc):
+  d = {}
+  d["field"]   = field
+  d["re"]      = '^\s+([\d,]+) ' + desc
+  d["process"] = lambda m: int(m.group(1).replace(',',''))
+  return d
+
+def time(field, label):
+  d = {}
+  d["field"] = field
+  #   Total   time    0.02s  (  0.02s elapsed)
+  d["re"] = '^\s*' + label + '\s+time\s+([\d.]+)s'
+  d["process"] = lambda m: float(m.group(1))
+  return d
+
+rts_fields = [
+  num('allocated', 'bytes allocated in the heap'),
+  num('gc-bytes', 'bytes copied during GC'),
+  time('total-time', 'Total')
+  ]
+
+def parse_haskell(path, e):
+  d = { "e": e }
+  with open(path) as f:
+    for x in f.readlines():
+      for p in rts_fields:
+        m = re.match(p["re"], x)
+        if m:
+          d[ p["field"] ] = p["process"](m)
+  return d
+
+def process(path):
+  kind, e = parse_path(path)
+  if kind == 'c':
+    return parse_c(path, e)
+  elif kind == 'h':
+    return parse_haskell(path, e)
+  else:
+    print "huh?", path
+
+def c_data(e):
+  pattern = "./data/c%03d-*" % e
+  rows = [ parse_c(p, e) for p in glob(pattern) ]
+  return pd.DataFrame(rows)
+
+def h_data(e):
+  pattern = "./data/h%03d-*" % e
+  rows = [ parse_haskell(p, e) for p in glob(pattern) ]
+  return pd.DataFrame(rows)
+
+def analyze(es):
+  t = []
+  for e in es:
+    cd         = c_data(e).describe()
+    ctime      = cd["real"]["mean"]
+    hd         = h_data(e).describe()
+    htime      = hd["total-time"]["mean"]
+    allocated  = hd["allocated"]["mean"]
+    gcbytes    = hd["gc-bytes"]["mean"]
+    hc         = htime / ctime
+    dps        = (htime - ctime) / 2**(21+e) * 1e12
+    alloc_iter = allocated / 2**e
+    t.append([e, ctime, htime, allocated, gcbytes, alloc_iter, hc, dps])
+  df = pd.DataFrame(t)
+  df.columns = [ 'e', 'ctime', 'htime', 'allocated', 'gc-bytes', 'alloc/iter', 'h/c', 'dps' ]
+  return df
+
+if __name__ == '__main__':
+  analyze(xrange(10,21))  # range of e values to report on
+

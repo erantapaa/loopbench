@@ -1,0 +1,7 @@
+*.o
+*.hi
+c5
+h5
+data/*
+! data/.dummy
+
