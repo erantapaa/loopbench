@@ -101,5 +101,6 @@ def analyze(es):
   return df
 
 if __name__ == '__main__':
-  analyze(xrange(10,21))  # range of e values to report on
+  df = analyze(xrange(10,21))  # range of e values to report on
+  print df
 
