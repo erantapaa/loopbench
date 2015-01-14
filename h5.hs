@@ -1,29 +1,33 @@
-{-# LANGUAGE BangPatterns #-}
-
 import System.Environment
+import qualified Data.Vector.Unboxed as Vector
+import Data.Word
 
-type Number = Int
+foo :: Word -> Bool
+foo n = isPrime x
+  where
+    -- a trick to prevent GHC from optimizing through the if statement
+    x = (4194304-3) - (rem n 2)*(17-3)
 
-{-# INLINE isp' #-}
-isp' :: Number -> Bool
-isp' n' = loop 3
-  where ul = floor $ ((sqrt (fromIntegral n)) :: Double)
-        loop d | d > ul       = True
-               | rem n d == 0 = False
-               | otherwise    = loop (d+2)
-        n = if even n' then 4194304-3 else 4194304-17 :: Number
+-- algorithm take from this reddit thread:
+--
+-- http://www.reddit.com/r/haskell/comments/2s6zu1/haskell_prime_counting_speed_comparison/cnn3gy2
 
--- pi(n) - the prime counting function, the number of prime numbers <= n
-primesNo :: Number -> Number
-primesNo n = loop 0 n
-  where loop !s n | n < 0 = s
-        loop !s n = if isp' n then loop (s+1) (n-1) else loop s (n-1)
+isPrime :: Word -> Bool
+isPrime n | n < 2 = False
+isPrime 2 = True
+isPrime n | n `rem` 2 == 0 = False
+isPrime n =
+  Vector.all (\i -> n `rem` i /= 0) .
+  Vector.enumFromStepN 3 2 $! (floor (sqrt (fromIntegral n) :: Double) - 1) `quot` 2
 
+-- 4194304-3 else 4194304-17
+
+main :: IO ()
 main = do
   args <- getArgs
-  let e :: Int
-      e = case args of
+  let e = case args of
             [] -> 22
-            (x:_) -> read x
-      n = 2^e
-  putStrLn $ "pi " ++ show n ++ " = " ++ show (primesNo n)
+            (s:_) -> read s
+  let n = 2^(e :: Int)
+  print . Vector.length . Vector.filter foo . Vector.enumFromN 0 $ n
+
