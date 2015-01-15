@@ -93,11 +93,12 @@ def analyze(es):
     allocated  = hd["allocated"]["mean"]
     gcbytes    = hd["gc-bytes"]["mean"]
     hc         = htime / ctime
-    dps        = (htime - ctime) / 2**(21+e) * 1e12
+    dtests     = 2**e * 2046
+    dns        = (htime - ctime) / dtests * 1e9
     alloc_iter = allocated / 2**e
-    t.append([e, ctime, htime, allocated, gcbytes, alloc_iter, hc, dps])
+    t.append([e, ctime, htime, allocated, gcbytes, alloc_iter, hc, dns])
   df = pd.DataFrame(t)
-  df.columns = [ 'e', 'ctime', 'htime', 'allocated', 'gc-bytes', 'alloc/iter', 'h/c', 'dps' ]
+  df.columns = [ 'e', 'ctime', 'htime', 'allocated', 'gc-bytes', 'alloc/iter', 'h/c', 'delta ns' ]
   return df
 
 if __name__ == '__main__':
